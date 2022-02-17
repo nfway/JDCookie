@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:gravity="center"
     tools:context=".activity.MainActivity">
 
     <LinearLayout
@@ -19,7 +20,7 @@
             android:layout_height="45dp"
             android:padding="10dp"
             android:src="@drawable/icon_back"
-            app:tint="#fff" />
+            app:tint="@color/white" />
 
         <View
             android:layout_width="0dp"
@@ -32,7 +33,7 @@
             android:layout_height="45dp"
             android:padding="12dp"
             android:src="@drawable/icon_refresh"
-            app:tint="#fff" />
+            app:tint="@color/white" />
 
         <ImageView
             android:id="@+id/main_set"
@@ -40,7 +41,7 @@
             android:layout_height="45dp"
             android:padding="12dp"
             android:src="@drawable/icon_set"
-            app:tint="#fff" />
+            app:tint="@color/white" />
     </LinearLayout>
 
 
@@ -51,15 +52,15 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="1px"
         android:max="100"
-        android:progress="20"
+        android:progress="10"
         android:progressDrawable="@drawable/drawable_webview_progress"
-        android:visibility="gone"
+        android:visibility="invisible"
         tools:visibility="visible" />
 
     <WebView
         android:id="@+id/main_web_view"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="350dp"
         android:layout_weight="2" />
 
     <RelativeLayout
@@ -73,7 +74,7 @@
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:gravity="center"
-            android:text="京东pt_key列表，点击复制"
+            android:text="京东Cookie，点击复制"
             android:textColor="@color/white"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -85,14 +86,22 @@
             android:layout_alignParentEnd="true"
             android:padding="12dp"
             android:src="@drawable/icon_clear"
-            android:tint="@color/white" />
+            app:tint="@color/white" />
     </RelativeLayout>
 
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/main_recycler_view"
+    <TextView
+        android:id="@+id/jd_cookie_text"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:textSize="14sp"
+        android:layout_height="30px"
         android:layout_weight="1"
-        android:scrollbars="vertical" />
+        android:padding="@dimen/dp_4"
+        android:text=""/>
+
+    <Button
+        android:id="@+id/submit_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/dp_4"
+        android:text="提交" />
 </LinearLayout>

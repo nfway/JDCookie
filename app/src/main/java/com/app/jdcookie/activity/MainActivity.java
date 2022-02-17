@@ -2,21 +2,19 @@ package com.app.jdcookie.activity;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+
 import android.os.Build;
 import android.os.Bundle;
+
 import android.text.TextUtils;
-import android.util.ArraySet;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
@@ -26,24 +24,20 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.app.jdcookie.CookieListener;
-import com.app.jdcookie.MyAdapter;
+
 import com.app.jdcookie.R;
-import com.chad.library.adapter.base.BaseQuickAdapter;
-import com.chad.library.adapter.base.listener.OnItemChildClickListener;
 
-import java.util.Set;
+import java.util.Objects;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity {
 
-    private WebView webBridgeWebView;
-    private ProgressBar webBridgeProgressBar;
-    private final static String JD_URL = "https://m.jd.com/";
-    private MyAdapter adapter;
-    private RecyclerView recyclerView;
-    private long oldTime = 0;
+    private final static String JD_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
+
+    private WebView webView;
+    private ProgressBar progressBar;
     private ActivityResultLauncher<Intent> setLauncher;
 
     @Override
@@ -55,66 +49,57 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         initWebView();
 
-        initData();
-
         setLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             int resultCode = result.getResultCode();
             if (resultCode == 10) {
-                webBridgeWebView.loadUrl(JD_URL);
                 findViewById(R.id.main_clear).performClick();
+                webView.loadUrl(JD_URL);
             }
         });
     }
 
     private void initView() {
-
-        findViewById(R.id.main_back).setOnClickListener(this);
-        findViewById(R.id.main_clear).setOnClickListener(this);
-        findViewById(R.id.main_set).setOnClickListener(this);
-        findViewById(R.id.main_refresh).setOnClickListener(this);
-        webBridgeProgressBar = findViewById(R.id.main_progress_bar);
-
-        recyclerView = findViewById(R.id.main_recycler_view);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(adapter = new MyAdapter());
-        adapter.setOnItemClickListener((adapter, view, position) -> {
-            //复制到剪切板
-            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        // 返回按钮
+        findViewById(R.id.main_back).setOnClickListener(v -> {
+            if (webView.canGoBack()) {
+                webView.goBack();
+            }
+        });
+        // 设置按钮
+        findViewById(R.id.main_set).setOnClickListener(v -> setLauncher.launch(new Intent(MainActivity.this, SetActivity.class)));
+        // 刷新按钮
+        findViewById(R.id.main_refresh).setOnClickListener(v -> webView.reload());
+        // 清除Cookie
+        findViewById(R.id.main_clear).setOnClickListener(v -> {
+            TextView textView = (TextView) findViewById(R.id.jd_cookie_text);
+            textView.setText("");
+            Toast.makeText(v.getContext(), "清除成功", Toast.LENGTH_SHORT).show();
+        });
+        // 复制Cookie
+        findViewById(R.id.jd_cookie_text).setOnClickListener(v -> {
+            TextView textView = (TextView) v;
+            // 复制到剪切板
+            ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             // 创建普通字符型ClipData
-            ClipData mClipData = ClipData.newPlainText("Label", MainActivity.this.adapter.getItem(position));
+            ClipData clipData = ClipData.newPlainText("Label", textView.getText());
             // 将ClipData内容放到系统剪贴板里。
-            cm.setPrimaryClip(mClipData);
+            manager.setPrimaryClip(clipData);
             Toast.makeText(MainActivity.this, "复制成功", Toast.LENGTH_SHORT).show();
         });
-        adapter.addChildClickViewIds(R.id.item_main_share);
-        adapter.setOnItemChildClickListener(new OnItemChildClickListener() {
+        // 提交Cookie
+        findViewById(R.id.submit_button).setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onItemChildClick(@NonNull BaseQuickAdapter adapter, @NonNull View view, int position) {
-                if (view.getId() == R.id.item_main_share) {
-                    Intent sendIntent = new Intent();
-                    sendIntent.setAction(Intent.ACTION_SEND);
-                    // 比如发送文本形式的数据内容
-                    // 指定发送的内容
-                    sendIntent.putExtra(Intent.EXTRA_TEXT, adapter.getItem(position).toString());
-                    // 指定发送内容的类型
-                    sendIntent.setType("text/plain");
-                    startActivity(Intent.createChooser(sendIntent, "分享京东cookie到..."));
-                }
+            public void onClick(View v) {
+
             }
         });
 
-        adapter.setEmptyView(R.layout.empty_layout);
-    }
-
-    private void initData() {
-        webBridgeWebView.loadUrl(JD_URL);
+        progressBar = findViewById(R.id.main_progress_bar);
     }
 
     private void initWebView() {
-
-
-        webBridgeWebView = findViewById(R.id.main_web_view);
-        WebSettings webSetting = webBridgeWebView.getSettings();
+        webView = findViewById(R.id.main_web_view);
+        WebSettings webSetting = webView.getSettings();
         webSetting.setJavaScriptEnabled(true);
 
         webSetting.setBuiltInZoomControls(true);
@@ -137,125 +122,79 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             webSetting.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
 
-
-//        WebView.setWebContentsDebuggingEnabled(BuilD);
-        webBridgeWebView.setWebViewClient(new MyWebViewClient(webBridgeProgressBar, (cookie, pt_key) -> runOnUiThread(() -> {
-
-            //限制 500 毫秒 刷新一次
-            long time = System.currentTimeMillis();
-            if (time - oldTime > 500 && !adapter.getData().contains(pt_key)) {
-
-                adapter.addData(pt_key);
-                recyclerView.scrollToPosition(adapter.getData().size() - 1);
-                oldTime = time;
-            }
-        })));
-        webBridgeWebView.setWebChromeClient(new MyWebChromeClient(webBridgeProgressBar));
-    }
-
-    public static class MyWebViewClient extends WebViewClient {
-
-        private final ProgressBar webBridgeProgressBar;
-        private final CookieListener cookieListener;
-
-        public MyWebViewClient(ProgressBar webBridgeProgressBar, CookieListener cookieListener) {
-
-            this.webBridgeProgressBar = webBridgeProgressBar;
-            this.cookieListener = cookieListener;
-        }
-
-        @Override
-        public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            if (webBridgeProgressBar != null) {
-                webBridgeProgressBar.setVisibility(View.VISIBLE);
-            }
-            super.onPageStarted(view, url, favicon);
-        }
-
-        @Override
-        public void onPageFinished(WebView view, String url) {
-            if (webBridgeProgressBar != null) {
-                webBridgeProgressBar.setVisibility(View.GONE);
-            }
-            super.onPageFinished(view, url);
-        }
-
-        @Nullable
-        @Override
-        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request1) {
-
-            try {
-                CookieManager cookieManager = CookieManager.getInstance();
-                String cookie = cookieManager.getCookie(request1.getUrl().toString());
-                if (cookieListener != null && !TextUtils.isEmpty(cookie) && cookie.contains("pt_key")) {
-
-                    int ptKeyIndex = cookie.indexOf("pt_key");
-                    //截取 pt_key 之后的字符串
-                    String pt_key = cookie.substring(ptKeyIndex);
-
-                    int ptPinIndex = pt_key.indexOf("pt_pin");
-                    String pt_pin = pt_key.substring(ptPinIndex);
-                    pt_pin = pt_pin.substring(0, pt_pin.indexOf(";", 1) + 1);
-
-                    //截取到"；"前的 pt_key
-                    pt_key = pt_key.substring(0, pt_key.indexOf(";", 1) + 1);
-
-                    cookieListener.onCookie(cookie, pt_key + pt_pin);
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.VISIBLE);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+                super.onPageStarted(view, url, favicon);
             }
-            return super.shouldInterceptRequest(view, request1);
-        }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (progressBar != null) {
+                    progressBar.setVisibility(View.INVISIBLE);
+                }
+                super.onPageFinished(view, url);
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request1) {
+                CookieManager cookieManager = CookieManager.getInstance();
+                String url = request1.getUrl().toString();
+                String cookie = cookieManager.getCookie(url);
+                if (cookie == null || cookie.isEmpty()) {
+                    return super.shouldInterceptRequest(view, request1);
+                }
+
+                if (!cookie.contains("pt_key") || !cookie.contains("pt_pin")) {
+                    return super.shouldInterceptRequest(view, request1);
+                }
+
+                final String pt_key = parseCookie(cookie);
+                if (pt_key == null || pt_key.isEmpty()) {
+                    runOnUiThread(() -> Toast.makeText(view.getContext(), "解析Cookie失败", Toast.LENGTH_SHORT).show());
+                    return super.shouldInterceptRequest(view, request1);
+                }
+
+                TextView textView = findViewById(R.id.jd_cookie_text);
+                if (!TextUtils.isEmpty(textView.getText()) && Objects.equals(pt_key, textView.getText())) {
+                    return super.shouldInterceptRequest(view, request1);
+                }
+
+                textView.setText(pt_key);
+                runOnUiThread(() -> Toast.makeText(view.getContext(), "解析Cookie成功", Toast.LENGTH_SHORT).show());
+                return super.shouldInterceptRequest(view, request1);
+            }
+        });
+
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                if (null != progressBar) {
+                    progressBar.setProgress(newProgress);
+                }
+                super.onProgressChanged(view, newProgress);
+            }
+
+            @Override
+            public void onReceivedTitle(WebView view, String title) {
+                super.onReceivedTitle(view, title);
+            }
+        });
+
+        webView.loadUrl(JD_URL);
     }
 
-    public static class MyWebChromeClient extends WebChromeClient {
-
-        private final ProgressBar webBridgeProgressBar;
-
-        public MyWebChromeClient(ProgressBar webBridgeProgressBar) {
-            this.webBridgeProgressBar = webBridgeProgressBar;
-        }
-
-        @Override
-        public void onProgressChanged(WebView view, int newProgress) {
-            if (null != webBridgeProgressBar) {
-                webBridgeProgressBar.setProgress(newProgress);
+    private String parseCookie(String cookie) {
+        StringBuffer stringBuffer = new StringBuffer();
+        for (String item : cookie.split(";")) {
+            item = item.trim();
+            if (item.startsWith("pt_pin") || item.startsWith("pt_key")) {
+                stringBuffer.append(item).append(";");
             }
-            super.onProgressChanged(view, newProgress);
         }
-
-        @Override
-        public void onReceivedTitle(WebView view, String title) {
-            super.onReceivedTitle(view, title);
-        }
-
-    }
-
-    @Override
-    public void onBackPressed() {
-        //返回上一页面
-        if (webBridgeWebView.canGoBack()) {
-            webBridgeWebView.goBack();
-        } else {
-            onBackPressed();
-        }
-    }
-
-    @Override
-    public void onClick(View v) {
-        if (v.getId() == R.id.main_back) {
-            onBackPressed();
-        } else if (v.getId() == R.id.main_clear) {
-            if (adapter != null) {
-                adapter.getData().clear();
-                adapter.notifyDataSetChanged();
-            }
-        } else if (v.getId() == R.id.main_set) {
-            setLauncher.launch(new Intent(this, SetActivity.class));
-        } else if (v.getId() == R.id.main_refresh) {
-            //刷新
-            webBridgeWebView.reload();
-        }
+        return stringBuffer.toString();
     }
 }
