@@ -3,6 +3,7 @@ package com.app.jdcookie.activity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.ClipData;
@@ -30,11 +31,24 @@ import android.widget.Toast;
 
 import com.app.jdcookie.R;
 
+import org.json.JSONObject;
+
+import java.io.IOException;
 import java.util.Objects;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.FormBody;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final static String JD_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
+    private static final String LOGIN_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
+    private static final String SUBMIT_URL = "http://49.232.79.109:8090/jd/cookie/put";
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -53,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
             int resultCode = result.getResultCode();
             if (resultCode == 10) {
                 findViewById(R.id.main_clear).performClick();
-                webView.loadUrl(JD_URL);
+                webView.loadUrl(LOGIN_URL);
             }
         });
     }
@@ -78,6 +92,10 @@ public class MainActivity extends AppCompatActivity {
         // 复制Cookie
         findViewById(R.id.jd_cookie_text).setOnClickListener(v -> {
             TextView textView = (TextView) v;
+            if (TextUtils.isEmpty(textView.getText())) {
+                return;
+            }
+
             // 复制到剪切板
             ClipboardManager manager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             // 创建普通字符型ClipData
@@ -90,7 +108,49 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.submit_button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                try {
+                    TextView textView = findViewById(R.id.jd_cookie_text);
+                    if (TextUtils.isEmpty(textView.getText())) {
+                        return;
+                    }
 
+                    JSONObject requestJson = new JSONObject();
+                    requestJson.put("cookie", textView.getText());
+                    MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+                    RequestBody requestBody = RequestBody.create(requestJson.toString(), mediaType);
+                    Request request = new Request.Builder().url(SUBMIT_URL).post(requestBody).build();
+                    OkHttpClient client = new OkHttpClient();
+                    client.newCall(request).enqueue(new Callback() {
+                        @Override
+                        public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                            runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                        }
+
+                        @Override
+                        public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                            try {
+                                if (response.code() != 200) {
+                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，状态码：" + response.code(), Toast.LENGTH_SHORT).show());
+                                }
+                                final String responseBody = response.body().string();
+                                JSONObject responseJson = new JSONObject(responseBody);
+                                if (responseJson.length() == 0) {
+                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，返回数据错误", Toast.LENGTH_SHORT).show());
+                                }
+                                if (responseJson.getBoolean("status")) {
+                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交成功", Toast.LENGTH_SHORT).show());
+                                } else {
+                                    String message = responseJson.getString("message");
+                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，" + message, Toast.LENGTH_SHORT).show());
+                                }
+                            } catch (Exception e) {
+                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                }
             }
         });
 
@@ -184,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl(JD_URL);
+        webView.loadUrl(LOGIN_URL);
     }
 
     private String parseCookie(String cookie) {
@@ -197,4 +257,5 @@ public class MainActivity extends AppCompatActivity {
         }
         return stringBuffer.toString();
     }
+
 }
