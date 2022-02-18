@@ -144,12 +144,12 @@ public class MainActivity extends AppCompatActivity {
                                     runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，" + message, Toast.LENGTH_SHORT).show());
                                 }
                             } catch (Exception e) {
-                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
                             }
                         }
                     });
                 } catch (Exception e) {
-                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
                 }
             }
         });
