@@ -18,9 +18,9 @@
             android:id="@+id/set_back_image"
             android:layout_width="45dp"
             android:layout_height="45dp"
-            android:padding="16dp"
+            android:padding="10dp"
             android:src="@drawable/icon_back"
-            app:tint="#fff" />
+            app:tint="@color/white" />
 
         <TextView
             android:layout_width="wrap_content"
