@@ -10,6 +10,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 
 import android.os.Build;
@@ -48,7 +49,9 @@ import okhttp3.Response;
 public class MainActivity extends AppCompatActivity {
 
     private static final String LOGIN_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
-    private static final String SUBMIT_URL = "http://49.232.79.109:8090/jd/cookie/put";
+
+    private static final String SUBMIT_PORT = "8090";
+    private static final String SUBMIT_URI = "/jd/cookie/put";
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        loadSubmitHost();
 
         initView();
 
@@ -113,17 +118,24 @@ public class MainActivity extends AppCompatActivity {
                     if (TextUtils.isEmpty(textView.getText())) {
                         return;
                     }
+                    String submitHost = loadSubmitHost();
+                    if (TextUtils.isEmpty(submitHost)) {
+                        runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置服务器IP", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    final String submitUrl = ("http://" + submitHost + ":" + SUBMIT_PORT + SUBMIT_URI);
 
                     JSONObject requestJson = new JSONObject();
                     requestJson.put("cookie", textView.getText());
                     MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
                     RequestBody requestBody = RequestBody.create(requestJson.toString(), mediaType);
-                    Request request = new Request.Builder().url(SUBMIT_URL).post(requestBody).build();
+                    Request request = new Request.Builder().url(submitUrl).post(requestBody).build();
                     OkHttpClient client = new OkHttpClient();
                     client.newCall(request).enqueue(new Callback() {
                         @Override
                         public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                            runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常", Toast.LENGTH_SHORT).show());
+                            runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
                         }
 
                         @Override
@@ -258,4 +270,8 @@ public class MainActivity extends AppCompatActivity {
         return stringBuffer.toString();
     }
 
+    private String loadSubmitHost() {
+        SharedPreferences setting = getSharedPreferences("setting", Context.MODE_PRIVATE);
+        return setting.getString("submit_host", "");
+    }
 }

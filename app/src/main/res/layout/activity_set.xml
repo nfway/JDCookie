@@ -44,6 +44,32 @@
             android:background="#eee"
             android:orientation="vertical">
 
+            <LinearLayout
+                android:id="@+id/set_submit_host_layout"
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="5dp"
+                android:background="#fff"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <TextView
+                    android:id="@+id/set_submit_host_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="服务器IP：未设置"
+                    android:textColor="#333"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/icon_arrow_more" />
+
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/set_clear_cookie_layout"
