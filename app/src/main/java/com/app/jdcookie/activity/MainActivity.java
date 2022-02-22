@@ -71,7 +71,8 @@ public class MainActivity extends AppCompatActivity {
         setLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             int resultCode = result.getResultCode();
             if (resultCode == 10) {
-                findViewById(R.id.main_clear).performClick();
+                TextView textView = findViewById(R.id.jd_cookie_text);
+                textView.setText("");
                 webView.loadUrl(LOGIN_URL);
             }
         });
@@ -90,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.main_refresh).setOnClickListener(v -> webView.reload());
         // 清除Cookie
         findViewById(R.id.main_clear).setOnClickListener(v -> {
-            TextView textView = (TextView) findViewById(R.id.jd_cookie_text);
+            TextView textView = findViewById(R.id.jd_cookie_text);
             textView.setText("");
             Toast.makeText(v.getContext(), "清除成功", Toast.LENGTH_SHORT).show();
         });
