@@ -92,6 +92,9 @@ public class MainActivity extends AppCompatActivity {
         // 清除Cookie
         findViewById(R.id.main_clear).setOnClickListener(v -> {
             TextView textView = findViewById(R.id.jd_cookie_text);
+            if (TextUtils.isEmpty(textView.getText())) {
+                return;
+            }
             textView.setText("");
             Toast.makeText(v.getContext(), "清除成功", Toast.LENGTH_SHORT).show();
         });
