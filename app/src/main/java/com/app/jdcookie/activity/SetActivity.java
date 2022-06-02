@@ -173,10 +173,20 @@ public class SetActivity extends AppCompatActivity {
         if (!TextUtils.isEmpty(password)) {
             TextView textView = findViewById(R.id.set_ql_password_text);
             if (textView != null) {
-                textView.setText("密码：" + password);
+                textView.setText("密码：" + encode(password));
             }
         }
     }
 
+    private String encode(String password) {
+        if (TextUtils.isEmpty(password)) {
+            return "";
+        }
+        StringBuffer result = new StringBuffer();
+        for (int i = 0; i < password.length(); i++) {
+            result.append("*");
+        }
+        return result.toString();
+    }
 
 }
