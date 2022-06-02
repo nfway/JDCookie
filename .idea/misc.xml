@@ -5,6 +5,18 @@
       <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
     </configurations>
   </component>
+  <component name="DesignSurface">
+    <option name="filePathToZoomLevelMap">
+      <map>
+        <entry key="..\:/AndroidStudioProjects/JDCookie/app/src/main/res/layout/activity_set.xml" value="0.3541666666666667" />
+        <entry key="..\:/Users/zhz/Desktop/JDCookie/app/src/main/res/drawable/drawable_webview_progress.xml" value="0.323" />
+        <entry key="..\:/Users/zhz/Desktop/JDCookie/app/src/main/res/layout/activity_main.xml" value="0.33" />
+        <entry key="..\:/Users/zhz/Desktop/JDCookie/app/src/main/res/layout/activity_set.xml" value="0.36614583333333334" />
+        <entry key="..\:/Users/zhz/Desktop/JDCookie/app/src/main/res/layout/empty_layout.xml" value="0.36614583333333334" />
+        <entry key="..\:/Users/zhz/Desktop/JDCookie/app/src/main/res/layout/item_main_layout.xml" value="0.36614583333333334" />
+      </map>
+    </option>
+  </component>
   <component name="MarkdownProjectSettings">
     <PreviewSettings splitEditorLayout="SPLIT" splitEditorPreview="PREVIEW" useGrayscaleRendering="false" zoomFactor="1.0" maxImageWidth="0" synchronizePreviewPosition="true" highlightPreviewType="LINE" highlightFadeOut="5" highlightOnTyping="true" synchronizeSourcePosition="true" verticallyAlignSourceAndPreviewSyncPosition="true" showSearchHighlightsInPreview="true" showSelectionInPreview="true" lastLayoutSetsDefault="false">
       <PanelProvider>

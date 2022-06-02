@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     String submitHost = loadSubmitHost();
                     if (TextUtils.isEmpty(submitHost)) {
-                        runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置服务器IP", Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置服务器地址", Toast.LENGTH_SHORT).show());
                         return;
                     }
 
