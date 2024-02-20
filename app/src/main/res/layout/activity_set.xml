@@ -87,7 +87,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="账号：未设置"
+                    android:text="应用ID：未设置"
                     android:textColor="#333"
                     android:textSize="14sp" />
 
@@ -114,7 +114,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="密码：未设置"
+                    android:text="应用密钥：未设置"
                     android:textColor="#333"
                     android:textSize="14sp" />
 
@@ -140,7 +140,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="清除浏览器Cookie"
+                    android:text="清除Cookie缓存"
                     android:textColor="#333"
                     android:textSize="14sp" />
 
