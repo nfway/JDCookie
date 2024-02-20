@@ -1,8 +1,5 @@
 package com.app.jdcookie.activity;
 
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -16,6 +13,8 @@ import android.webkit.ValueCallback;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.app.jdcookie.R;
 import com.app.jdcookie.constant.SettingKey;
