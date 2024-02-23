@@ -370,9 +370,12 @@ public class MainActivity extends AppCompatActivity {
             JSONArray envArray = getEnvArray(jdCookie);
             if (envArray == null || envArray.length() == 0) {
                 // 新增
-                JSONObject body = new JSONObject();
-                body.put("name", QL_ENV_NAME);
-                body.put("value", jdCookie);
+                JSONObject env = new JSONObject();
+                env.put("name", QL_ENV_NAME);
+                env.put("value", jdCookie);
+
+                JSONArray body = new JSONArray();
+                body.put(env);
                 return doPost(submitUrl, body);
             } else {
                 // 更新
@@ -425,7 +428,7 @@ public class MainActivity extends AppCompatActivity {
         return new JSONObject(responseBody);
     }
 
-    private JSONObject doPost(String url, JSONObject body) throws IOException, JSONException {
+    private JSONObject doPost(String url, JSONArray body) throws IOException, JSONException {
         if (httpClient == null) {
             httpClient = new OkHttpClient();
         }
