@@ -180,6 +180,7 @@ public class MainActivity extends AppCompatActivity {
                                 runOnUiThread(() -> Toast.makeText(v.getContext(), ("提交失败，" + msg), Toast.LENGTH_SHORT).show());
                             }
 
+
                         } catch (Exception e) {
                             String msg = ("程序异常：" + e.getClass().getSimpleName());
                             runOnUiThread(() -> Toast.makeText(v.getContext(), msg, Toast.LENGTH_SHORT).show());
@@ -366,7 +367,6 @@ public class MainActivity extends AppCompatActivity {
 
     private JSONObject doSubmit(String jdCookie) {
         try {
-            String submitUrl = (baseUrl + "/open/envs");
             JSONArray envArray = getEnvArray(jdCookie);
             if (envArray == null || envArray.length() == 0) {
                 // 新增
@@ -376,16 +376,27 @@ public class MainActivity extends AppCompatActivity {
 
                 JSONArray body = new JSONArray();
                 body.put(env);
-                return doPost(submitUrl, body);
+                return doPost((baseUrl + "/open/envs"), body);
             } else {
-                // 更新
                 JSONObject env = envArray.getJSONObject(0);
+                final int envId = env.getInt("id");
 
-                JSONObject body = new JSONObject();
-                body.put("id", env.getString("id"));
-                body.put("name", QL_ENV_NAME);
-                body.put("value", jdCookie);
-                return doPut(submitUrl, body);
+                // 更新
+                JSONObject reqBody1 = new JSONObject();
+                reqBody1.put("id", envId);
+                reqBody1.put("name", QL_ENV_NAME);
+                reqBody1.put("value", jdCookie);
+                JSONObject resBody1 = doPut((baseUrl + "/open/envs"), reqBody1);
+                if (resBody1.getInt("code") != 200) {
+                    return resBody1;
+                }
+
+                // 启用
+                JSONArray reqBody2 = new JSONArray();
+                reqBody2.put(envId);
+                JSONObject resBody2 = doPut((baseUrl + "/open/envs/enable"), reqBody2);
+                return resBody2;
+
             }
         } catch (ConnectException e) {
             runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "提交失败，服务器无法连接！", Toast.LENGTH_SHORT).show());
@@ -428,6 +439,25 @@ public class MainActivity extends AppCompatActivity {
         return new JSONObject(responseBody);
     }
 
+    private JSONObject doPost(String url, JSONObject body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .post(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
     private JSONObject doPost(String url, JSONArray body) throws IOException, JSONException {
         if (httpClient == null) {
             httpClient = new OkHttpClient();
@@ -448,6 +478,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private JSONObject doPut(String url, JSONObject body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .put(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    private JSONObject doPut(String url, JSONArray body) throws IOException, JSONException {
         if (httpClient == null) {
             httpClient = new OkHttpClient();
         }
