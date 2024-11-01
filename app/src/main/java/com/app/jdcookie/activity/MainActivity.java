@@ -1,21 +1,13 @@
 package com.app.jdcookie.activity;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-
 import android.os.Build;
 import android.os.Bundle;
-
 import android.text.TextUtils;
 import android.view.View;
 import android.webkit.CookieManager;
@@ -29,17 +21,21 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.app.jdcookie.R;
+import com.app.jdcookie.constant.SettingKey;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.util.Objects;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -48,21 +44,21 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String LOGIN_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
-
-    private static final String SUBMIT_PORT = "8090";
-    private static final String SUBMIT_URI = "/jd/cookie/put";
+    private static final String JD_LOGIN_URL = "https://plogin.m.jd.com/login/login?appid=300&returnurl=https%3A%2F%2Fhome.m.jd.com%2FmyJd%2Fnewhome.action";
+    private static final String QL_ENV_NAME = "JD_COOKIE";
 
     private WebView webView;
     private ProgressBar progressBar;
     private ActivityResultLauncher<Intent> setLauncher;
+    private OkHttpClient httpClient;
+
+    private volatile String token;
+    private volatile String baseUrl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        loadSubmitHost();
 
         initView();
 
@@ -70,10 +66,20 @@ public class MainActivity extends AppCompatActivity {
 
         setLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             int resultCode = result.getResultCode();
-            if (resultCode == 10) {
-                TextView textView = findViewById(R.id.jd_cookie_text);
-                textView.setText("");
-                webView.loadUrl(LOGIN_URL);
+            switch (resultCode) {
+                case 10:
+                    boolean isCleanedCookie = result.getData().getBooleanExtra("isCleanedCookie", false);
+                    boolean isChangeSetting = result.getData().getBooleanExtra("isChangeSetting", false);
+                    if (isCleanedCookie) {
+                        TextView textView = findViewById(R.id.jd_cookie_text);
+                        textView.setText("");
+                        webView.loadUrl(JD_LOGIN_URL);
+                    }
+                    if (isChangeSetting) {
+                        token = null;
+                        baseUrl = null;
+                    }
+                default:
             }
         });
     }
@@ -87,8 +93,10 @@ public class MainActivity extends AppCompatActivity {
         });
         // 设置按钮
         findViewById(R.id.main_set).setOnClickListener(v -> setLauncher.launch(new Intent(MainActivity.this, SetActivity.class)));
+
         // 刷新按钮
         findViewById(R.id.main_refresh).setOnClickListener(v -> webView.reload());
+
         // 清除Cookie
         findViewById(R.id.main_clear).setOnClickListener(v -> {
             TextView textView = findViewById(R.id.jd_cookie_text);
@@ -98,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
             textView.setText("");
             Toast.makeText(v.getContext(), "清除成功", Toast.LENGTH_SHORT).show();
         });
+
         // 复制Cookie
         findViewById(R.id.jd_cookie_text).setOnClickListener(v -> {
             TextView textView = (TextView) v;
@@ -113,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
             manager.setPrimaryClip(clipData);
             Toast.makeText(MainActivity.this, "复制成功", Toast.LENGTH_SHORT).show();
         });
+
         // 提交Cookie
         findViewById(R.id.submit_button).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -122,50 +132,64 @@ public class MainActivity extends AppCompatActivity {
                     if (TextUtils.isEmpty(textView.getText())) {
                         return;
                     }
-                    String submitHost = loadSubmitHost();
-                    if (TextUtils.isEmpty(submitHost)) {
+
+                    // 获取服务器地址
+                    if (TextUtils.isEmpty(baseUrl)) {
+                        baseUrl = getBaseUrl();
+                    }
+                    if (TextUtils.isEmpty(baseUrl)) {
                         runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置服务器地址", Toast.LENGTH_SHORT).show());
                         return;
                     }
 
-                    final String submitUrl = ("http://" + submitHost + ":" + SUBMIT_PORT + SUBMIT_URI);
+                    // 获取应用ID
+                    String clientId = getClientId();
+                    if (TextUtils.isEmpty(clientId)) {
+                        runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置应用ID", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
 
-                    JSONObject requestJson = new JSONObject();
-                    requestJson.put("cookie", textView.getText());
-                    MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
-                    RequestBody requestBody = RequestBody.create(requestJson.toString(), mediaType);
-                    Request request = new Request.Builder().url(submitUrl).post(requestBody).build();
-                    OkHttpClient client = new OkHttpClient();
-                    client.newCall(request).enqueue(new Callback() {
-                        @Override
-                        public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                            runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
-                        }
+                    // 获取应用密钥
+                    String clientSecret = getClientSecret();
+                    if (TextUtils.isEmpty(clientSecret)) {
+                        runOnUiThread(() -> Toast.makeText(v.getContext(), "未设置应用密钥", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
 
-                        @Override
-                        public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                            try {
-                                if (response.code() != 200) {
-                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，状态码：" + response.code(), Toast.LENGTH_SHORT).show());
-                                }
-                                final String responseBody = response.body().string();
-                                JSONObject responseJson = new JSONObject(responseBody);
-                                if (responseJson.length() == 0) {
-                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，返回数据错误", Toast.LENGTH_SHORT).show());
-                                }
-                                if (responseJson.getBoolean("status")) {
-                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交成功", Toast.LENGTH_SHORT).show());
-                                } else {
-                                    String message = responseJson.getString("message");
-                                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，" + message, Toast.LENGTH_SHORT).show());
-                                }
-                            } catch (Exception e) {
-                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    new Thread(() -> {
+                        try {
+                            // 青龙应用认证
+                            if (TextUtils.isEmpty(token)) {
+                                token = doAuth(clientId, clientSecret);
                             }
+                            if (TextUtils.isEmpty(token)) {
+                                return;
+                            }
+
+                            // 提交Cookie
+                            JSONObject resBody = doSubmit(String.valueOf(textView.getText()));
+                            if (resBody == null || resBody.length() == 0) {
+                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败", Toast.LENGTH_SHORT).show());
+                                return;
+                            }
+                            int code = resBody.getInt("code");
+                            if (code == 200) {
+                                runOnUiThread(() -> Toast.makeText(v.getContext(), "提交成功", Toast.LENGTH_SHORT).show());
+                            } else {
+                                String msg = resBody.getString("message");
+                                runOnUiThread(() -> Toast.makeText(v.getContext(), ("提交失败，" + msg), Toast.LENGTH_SHORT).show());
+                            }
+
+
+                        } catch (Exception e) {
+                            String msg = ("程序异常：" + e.getClass().getSimpleName());
+                            runOnUiThread(() -> Toast.makeText(v.getContext(), msg, Toast.LENGTH_SHORT).show());
                         }
-                    });
+                    }).start();
+
                 } catch (Exception e) {
-                    runOnUiThread(() -> Toast.makeText(v.getContext(), "提交失败，出现异常：" + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    String msg = ("程序异常：" + e.getClass().getSimpleName());
+                    runOnUiThread(() -> Toast.makeText(v.getContext(), msg, Toast.LENGTH_SHORT).show());
                 }
             }
         });
@@ -260,22 +284,251 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl(LOGIN_URL);
+        webView.loadUrl(JD_LOGIN_URL);
     }
 
     private String parseCookie(String cookie) {
         StringBuffer stringBuffer = new StringBuffer();
-        for (String item : cookie.split(";")) {
+        String[] split = cookie.split(";");
+        for (String item : split) {
             item = item.trim();
-            if (item.startsWith("pt_pin") || item.startsWith("pt_key")) {
+            if (item.startsWith("pt_pin")) {
                 stringBuffer.append(item).append(";");
+                break;
+            }
+        }
+        for (String item : split) {
+            item = item.trim();
+            if (item.startsWith("pt_key")) {
+                stringBuffer.append(item).append(";");
+                break;
             }
         }
         return stringBuffer.toString();
     }
 
-    private String loadSubmitHost() {
+    private String getBaseUrl() {
         SharedPreferences setting = getSharedPreferences("setting", Context.MODE_PRIVATE);
-        return setting.getString("submit_host", "");
+        return setting.getString(SettingKey.BASE_URL, "");
     }
+
+    private String getClientId() {
+        SharedPreferences setting = getSharedPreferences("setting", Context.MODE_PRIVATE);
+        return setting.getString(SettingKey.CLIENT_ID, "");
+    }
+
+    private String getClientSecret() {
+        SharedPreferences setting = getSharedPreferences("setting", Context.MODE_PRIVATE);
+        return setting.getString(SettingKey.CLIENT_SECRET, "");
+    }
+
+    private String doAuth(String clientId, String clientSecret) {
+        try {
+            if (httpClient == null) {
+                httpClient = new OkHttpClient();
+            }
+            String url = (baseUrl + "/open/auth/token?client_id=" + clientId + "&client_secret=" + clientSecret);
+            Request request = new Request.Builder().url(url).get().build();
+            Response response = httpClient.newCall(request).execute();
+            if (response.code() != 200) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "认证失败，状态码错误：" + response.code(), Toast.LENGTH_SHORT).show());
+                return null;
+            }
+            String resBody = response.body().string();
+            if (TextUtils.isEmpty(resBody)) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "认证失败，返回数据为空", Toast.LENGTH_SHORT).show());
+                return null;
+            }
+            JSONObject resJson = new JSONObject(resBody);
+            if (resJson == null || resJson.length() == 0) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "认证失败，返回数据为空", Toast.LENGTH_SHORT).show());
+                return null;
+            }
+            int code = resJson.getInt("code");
+            if (code != 200) {
+                String msg = resJson.getString("message");
+                runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), ("认证失败，" + msg), Toast.LENGTH_SHORT).show());
+                return null;
+            }
+            JSONObject data = resJson.getJSONObject("data");
+            if (data == null || data.length() == 0) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "认证失败，返回数据[data]为空", Toast.LENGTH_SHORT).show());
+                return null;
+            }
+            return data.getString("token");
+        } catch (ConnectException e) {
+            runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "认证失败，服务器无法连接！", Toast.LENGTH_SHORT).show());
+        } catch (Exception e) {
+            String msg = ("认证失败，程序异常：" + e.getClass().getSimpleName());
+            runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), msg, Toast.LENGTH_SHORT).show());
+        }
+        return null;
+    }
+
+    private JSONObject doSubmit(String jdCookie) {
+        try {
+            JSONArray envArray = getEnvArray(jdCookie);
+            if (envArray == null || envArray.length() == 0) {
+                // 新增
+                JSONObject env = new JSONObject();
+                env.put("name", QL_ENV_NAME);
+                env.put("value", jdCookie);
+
+                JSONArray body = new JSONArray();
+                body.put(env);
+                return doPost((baseUrl + "/open/envs"), body);
+            } else {
+                JSONObject env = envArray.getJSONObject(0);
+                final int envId = env.getInt("id");
+
+                // 更新
+                JSONObject reqBody1 = new JSONObject();
+                reqBody1.put("id", envId);
+                reqBody1.put("name", QL_ENV_NAME);
+                reqBody1.put("value", jdCookie);
+                JSONObject resBody1 = doPut((baseUrl + "/open/envs"), reqBody1);
+                if (resBody1.getInt("code") != 200) {
+                    return resBody1;
+                }
+
+                // 启用
+                JSONArray reqBody2 = new JSONArray();
+                reqBody2.put(envId);
+                JSONObject resBody2 = doPut((baseUrl + "/open/envs/enable"), reqBody2);
+                return resBody2;
+
+            }
+        } catch (ConnectException e) {
+            runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), "提交失败，服务器无法连接！", Toast.LENGTH_SHORT).show());
+        } catch (Exception e) {
+            String msg = ("提交失败，程序异常：" + e.getClass().getSimpleName());
+            runOnUiThread(() -> Toast.makeText(MainActivity.this.getBaseContext(), msg, Toast.LENGTH_SHORT).show());
+        }
+        return null;
+    }
+
+    private JSONArray getEnvArray(String jdCookie) throws IOException, JSONException {
+        if (TextUtils.isEmpty(jdCookie)) {
+            return null;
+        }
+        String ptPin = getPtPin(jdCookie);
+        if (TextUtils.isEmpty(ptPin)) {
+            return null;
+        }
+        JSONObject resBody = doGet(baseUrl + "/open/envs?searchValue=" + ptPin);
+        if (resBody == null) {
+            return null;
+        }
+        return resBody.getJSONArray("data");
+    }
+
+    private JSONObject doGet(String url) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .get()
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    private JSONObject doPost(String url, JSONObject body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .post(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    private JSONObject doPost(String url, JSONArray body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .post(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    private JSONObject doPut(String url, JSONObject body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .put(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    private JSONObject doPut(String url, JSONArray body) throws IOException, JSONException {
+        if (httpClient == null) {
+            httpClient = new OkHttpClient();
+        }
+        MediaType mediaType = MediaType.parse("application/json;charset=UTF-8");
+        RequestBody reqBody = RequestBody.create(body.toString(), mediaType);
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer " + token)
+                .put(reqBody)
+                .build();
+        Response response = httpClient.newCall(request).execute();
+        String responseBody = response.body().string();
+        if (TextUtils.isEmpty(responseBody)) {
+            return null;
+        }
+        return new JSONObject(responseBody);
+    }
+
+    public static String getPtPin(String jdCookie) {
+        if (TextUtils.isEmpty(jdCookie)) {
+            return null;
+        }
+        String[] split = jdCookie.split(";");
+        if (split == null || split.length == 0) {
+            return null;
+        }
+        for (String item : split) {
+            if (item != null && item.trim().startsWith("pt_pin")) {
+                return item.replace("pt_pin=", "");
+            }
+        }
+        return null;
+    }
+
 }
